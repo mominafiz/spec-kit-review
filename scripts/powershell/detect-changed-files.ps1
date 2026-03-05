@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Identifies changed files by comparing the current branch against
-    the default branch (Mode A - feature branch diff) or by collecting
-    staged + unstaged changes (Mode B - working directory changes).
+    the default branch plus any uncommitted work (Mode A - feature branch
+    diff + working directory) or by collecting staged + unstaged changes
+    (Mode B - working directory changes only).
 
 .PARAMETER Json
     Output in JSON format (for machine consumption).
@@ -134,12 +135,34 @@ if ($CurrentBranch -and $DefaultBranch -and ($CurrentBranch -ne $DefaultBranch))
     } catch {}
 
     if ($MergeBase) {
+        # Committed changes since merge-base
         $diffRaw = git diff --name-only -z --diff-filter=ACMR "$MergeBase...HEAD" 2>$null
+        $committedFiles = @()
         if ($diffRaw) {
             $diffJoined = ($diffRaw -join "`n")
-            $ChangedFiles = @($diffJoined -split "`0" | Where-Object { $_ -ne "" })
+            $committedFiles = @($diffJoined -split "`0" | Where-Object { $_ -ne "" })
         }
-        $Mode = "Feature branch diff ($DefaultBranch...HEAD)"
+
+        # Staged (index) changes
+        $stagedRaw = git diff --cached --name-only -z --diff-filter=ACMR 2>$null
+        $stagedFiles = @()
+        if ($stagedRaw) {
+            $sJoined = ($stagedRaw -join "`n")
+            $stagedFiles = @($sJoined -split "`0" | Where-Object { $_ -ne "" })
+        }
+
+        # Unstaged (working tree) changes
+        $unstagedRaw = git diff --name-only -z --diff-filter=ACMR 2>$null
+        $unstagedFiles = @()
+        if ($unstagedRaw) {
+            $uJoined = ($unstagedRaw -join "`n")
+            $unstagedFiles = @($uJoined -split "`0" | Where-Object { $_ -ne "" })
+        }
+
+        # Combine and deduplicate
+        $ChangedFiles = @($committedFiles + $stagedFiles + $unstagedFiles | Sort-Object -Unique)
+
+        $Mode = "Feature branch diff ($DefaultBranch...HEAD) + uncommitted changes"
     } else {
         # merge-base failed - fall through to Mode B
         $DefaultBranch = ""

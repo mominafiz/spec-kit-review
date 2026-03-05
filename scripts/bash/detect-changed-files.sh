@@ -2,8 +2,9 @@
 # Detect changed files for code review via git diff
 #
 # Identifies changed files by comparing the current branch against
-# the default branch (Mode A — feature branch diff) or by collecting
-# staged + unstaged changes (Mode B — working directory changes).
+# the default branch plus any uncommitted work (Mode A — feature branch
+# diff + working directory) or by collecting staged + unstaged changes
+# (Mode B — working directory changes only).
 #
 # Usage: ./detect-changed-files.sh [OPTIONS]
 #
@@ -141,11 +142,41 @@ if [[ -n "$CURRENT_BRANCH" && -n "$DEFAULT_BRANCH" && "$CURRENT_BRANCH" != "$DEF
     MERGE_BASE=$(git merge-base "origin/$DEFAULT_BRANCH" HEAD 2>/dev/null || echo "")
 
     if [[ -n "$MERGE_BASE" ]]; then
-        CHANGED_FILES=()
+        # Committed changes since merge-base
+        COMMITTED=()
         while IFS= read -r -d '' line; do
-            [[ -n "$line" ]] && CHANGED_FILES+=("$line")
+            [[ -n "$line" ]] && COMMITTED+=("$line")
         done < <(git diff --name-only -z --diff-filter=ACMR "${MERGE_BASE}...HEAD" 2>/dev/null)
-        MODE="Feature branch diff (${DEFAULT_BRANCH}...HEAD)"
+
+        # Staged (index) changes
+        STAGED=()
+        while IFS= read -r -d '' line; do
+            [[ -n "$line" ]] && STAGED+=("$line")
+        done < <(git diff --cached --name-only -z --diff-filter=ACMR 2>/dev/null)
+
+        # Unstaged (working tree) changes
+        UNSTAGED=()
+        while IFS= read -r -d '' line; do
+            [[ -n "$line" ]] && UNSTAGED+=("$line")
+        done < <(git diff --name-only -z --diff-filter=ACMR 2>/dev/null)
+
+        # Combine and deduplicate (bash 3 compatible — no associative arrays)
+        CHANGED_FILES=()
+        for f in "${COMMITTED[@]}" "${STAGED[@]}" "${UNSTAGED[@]}"; do
+            [[ -z "$f" ]] && continue
+            _dup=false
+            for existing in "${CHANGED_FILES[@]}"; do
+                if [[ "$existing" == "$f" ]]; then
+                    _dup=true
+                    break
+                fi
+            done
+            if ! $_dup; then
+                CHANGED_FILES+=("$f")
+            fi
+        done
+
+        MODE="Feature branch diff (${DEFAULT_BRANCH}...HEAD) + uncommitted changes"
     else
         # merge-base failed — fall through to Mode B
         DEFAULT_BRANCH=""

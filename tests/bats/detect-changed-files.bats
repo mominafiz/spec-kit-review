@@ -250,6 +250,83 @@ teardown() {
 }
 
 # ──────────────────────────────────────────────
+# Mode A — Feature Branch + Uncommitted Changes
+# ──────────────────────────────────────────────
+
+@test "Mode A includes staged uncommitted files" {
+    init_git_repo_with_remote "$TEST_TEMP_DIR"
+    cd "$TEST_TEMP_DIR"
+
+    git checkout --quiet -b feature-staged
+    echo "committed" > committed.txt
+    git add committed.txt
+    git commit --quiet -m "Add committed file"
+
+    # Stage a new file without committing
+    echo "staged" > staged-only.txt
+    git add staged-only.txt
+
+    run bash "$SCRIPTS_DIR/detect-changed-files.sh" --json
+    assert_success
+    assert_valid_json "$output"
+
+    # Both committed and staged files should appear
+    assert_output --partial '"committed.txt"'
+    assert_output --partial '"staged-only.txt"'
+
+    local mode=$(json_field "$output" "mode")
+    [[ "$mode" == *"uncommitted"* ]]
+}
+
+@test "Mode A includes unstaged uncommitted files" {
+    init_git_repo_with_remote "$TEST_TEMP_DIR"
+    cd "$TEST_TEMP_DIR"
+
+    # Create a file on main, push it, then modify on feature branch
+    echo "original" > existing.txt
+    git add existing.txt
+    git commit --quiet -m "Add existing file"
+    git push --quiet origin main
+
+    git checkout --quiet -b feature-unstaged
+    echo "committed on branch" > committed.txt
+    git add committed.txt
+    git commit --quiet -m "Add committed file"
+
+    # Modify existing file without staging
+    echo "modified" > existing.txt
+
+    run bash "$SCRIPTS_DIR/detect-changed-files.sh" --json
+    assert_success
+    assert_valid_json "$output"
+
+    # Both committed diff and unstaged modification should appear
+    assert_output --partial '"committed.txt"'
+    assert_output --partial '"existing.txt"'
+}
+
+@test "Mode A deduplicates committed and uncommitted files" {
+    init_git_repo_with_remote "$TEST_TEMP_DIR"
+    cd "$TEST_TEMP_DIR"
+
+    git checkout --quiet -b feature-dedup
+    echo "v1" > shared.txt
+    git add shared.txt
+    git commit --quiet -m "Add shared file"
+
+    # Modify the same file (unstaged) — it appears in both committed diff and unstaged
+    echo "v2" > shared.txt
+
+    run bash "$SCRIPTS_DIR/detect-changed-files.sh" --json
+    assert_success
+    assert_valid_json "$output"
+
+    # shared.txt should appear exactly once
+    local count=$(echo "$output" | python3 -c "import json,sys; print(json.load(sys.stdin)['changed_files'].count('shared.txt'))")
+    [ "$count" -eq 1 ]
+}
+
+# ──────────────────────────────────────────────
 # Default Branch Detection Fallbacks
 # ──────────────────────────────────────────────
 

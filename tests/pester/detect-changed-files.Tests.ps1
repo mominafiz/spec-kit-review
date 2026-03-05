@@ -314,6 +314,90 @@ Describe "detect-changed-files.ps1" {
     }
 
     # ──────────────────────────────────────────────
+    # Mode A — Feature Branch + Uncommitted Changes
+    # ──────────────────────────────────────────────
+
+    Describe "Mode A - Uncommitted changes" {
+        It "includes staged uncommitted files" {
+            $tmp = New-TempDir
+            try {
+                Initialize-GitRepoWithRemote -Dir $tmp
+                Push-Location $tmp
+                git checkout --quiet -b feature-staged
+                "committed" | Set-Content "committed.txt"
+                git add committed.txt
+                git commit --quiet -m "Add committed file"
+
+                # Stage a new file without committing
+                "staged" | Set-Content "staged-only.txt"
+                git add staged-only.txt
+
+                $result = & pwsh -NoProfile -File $Script -Json 2>&1
+                $LASTEXITCODE | Should -Be 0
+                $json = $result | ConvertFrom-Json
+                $json.changed_files | Should -Contain "committed.txt"
+                $json.changed_files | Should -Contain "staged-only.txt"
+                $json.mode | Should -Match "uncommitted"
+            } finally {
+                Pop-Location
+                Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+            }
+        }
+
+        It "includes unstaged uncommitted files" {
+            $tmp = New-TempDir
+            try {
+                Initialize-GitRepoWithRemote -Dir $tmp
+                Push-Location $tmp
+                "original" | Set-Content "existing.txt"
+                git add existing.txt
+                git commit --quiet -m "Add existing file"
+                git push --quiet origin main
+
+                git checkout --quiet -b feature-unstaged
+                "committed on branch" | Set-Content "committed.txt"
+                git add committed.txt
+                git commit --quiet -m "Add committed file"
+
+                # Modify existing file without staging
+                "modified" | Set-Content "existing.txt"
+
+                $result = & pwsh -NoProfile -File $Script -Json 2>&1
+                $LASTEXITCODE | Should -Be 0
+                $json = $result | ConvertFrom-Json
+                $json.changed_files | Should -Contain "committed.txt"
+                $json.changed_files | Should -Contain "existing.txt"
+            } finally {
+                Pop-Location
+                Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+            }
+        }
+
+        It "deduplicates committed and uncommitted files" {
+            $tmp = New-TempDir
+            try {
+                Initialize-GitRepoWithRemote -Dir $tmp
+                Push-Location $tmp
+                git checkout --quiet -b feature-dedup
+                "v1" | Set-Content "shared.txt"
+                git add shared.txt
+                git commit --quiet -m "Add shared file"
+
+                # Modify the same file (unstaged)
+                "v2" | Set-Content "shared.txt"
+
+                $result = & pwsh -NoProfile -File $Script -Json 2>&1
+                $LASTEXITCODE | Should -Be 0
+                $json = $result | ConvertFrom-Json
+                ($json.changed_files | Where-Object { $_ -eq "shared.txt" }).Count | Should -Be 1
+            } finally {
+                Pop-Location
+                Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    # ──────────────────────────────────────────────
     # Default Branch Detection Fallbacks
     # ──────────────────────────────────────────────
 
