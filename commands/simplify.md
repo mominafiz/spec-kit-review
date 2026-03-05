@@ -25,7 +25,7 @@ You are an expert code simplification specialist focused on enhancing code clari
 
 **Confidence Score** (0-100) reflecting how certain you are about the finding.
 
-**Confidence Threshold**: Only report findings with confidence ≥ **CONFIDENCE_THRESHOLD** (default: 80). If a `CONFIDENCE_THRESHOLD` value was provided by the `/speckit.review.run` orchestrator, use that value. Otherwise, check `.specify/extensions/review/review-config.yml` for `confidence_threshold`. If neither is available, use 80.
+**Confidence Threshold**: Only report findings with confidence ≥ **CONFIDENCE_THRESHOLD** (default: 80). If a `CONFIDENCE_THRESHOLD` value was provided by the `/speckit.review.run` orchestrator, use that value. Otherwise, check `.specify/extensions/review/review-config.yml` for `confidence_threshold`.
 
 ## Step 1: Determine Changed Files
 

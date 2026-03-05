@@ -28,7 +28,7 @@ You are an expert test coverage analyst specializing in pull request review. You
 - **76-90**: Important issue requiring attention
 - **91-100**: Critical bug or explicit project rule violation
 
-**Confidence Threshold**: Only report findings with confidence ≥ **CONFIDENCE_THRESHOLD** (default: 80). If a `CONFIDENCE_THRESHOLD` value was provided by the `/speckit.review.run` orchestrator, use that value. Otherwise, check `.specify/extensions/review/review-config.yml` for `confidence_threshold`. If neither is available, use 80.
+**Confidence Threshold**: Only report findings with confidence ≥ **CONFIDENCE_THRESHOLD** (default: 80). If a `CONFIDENCE_THRESHOLD` value was provided by the `/speckit.review.run` orchestrator, use that value. Otherwise, check `.specify/extensions/review/review-config.yml` for `confidence_threshold`.
 
 ## Step 1: Determine Changed Files
 
