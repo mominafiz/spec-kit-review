@@ -28,7 +28,7 @@ teardown_temp_dir() {
 # Initialize a git repo in the temp directory
 init_git_repo() {
     local dir="${1:-$TEST_TEMP_DIR}"
-    git -C "$dir" init --quiet
+    git -C "$dir" init --quiet -b main
     git -C "$dir" config user.email "test@example.com"
     git -C "$dir" config user.name "Test"
     # Create initial commit so git diff works
@@ -42,12 +42,13 @@ init_git_repo_with_remote() {
     local dir="${1:-$TEST_TEMP_DIR}"
     local bare_dir="${dir}/_bare_remote"
 
-    # Create a bare repo to act as origin
+    # Create a bare repo to act as origin (explicitly use main)
     mkdir -p "$bare_dir"
     git -C "$bare_dir" init --bare --quiet
+    git -C "$bare_dir" symbolic-ref HEAD refs/heads/main
 
     # Create the working repo
-    git -C "$dir" init --quiet
+    git -C "$dir" init --quiet -b main
     git -C "$dir" config user.email "test@example.com"
     git -C "$dir" config user.name "Test"
     git -C "$dir" remote add origin "$bare_dir"
@@ -56,8 +57,7 @@ init_git_repo_with_remote() {
     touch "$dir/.gitkeep"
     git -C "$dir" add .
     git -C "$dir" commit --quiet -m "Initial commit"
-    git -C "$dir" push --quiet origin main 2>/dev/null || \
-        git -C "$dir" push --quiet origin master 2>/dev/null
+    git -C "$dir" push --quiet origin main
 
     # Set origin/HEAD so symbolic-ref works
     git -C "$dir" remote set-head origin --auto 2>/dev/null || true

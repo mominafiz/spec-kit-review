@@ -134,9 +134,10 @@ if ($CurrentBranch -and $DefaultBranch -and ($CurrentBranch -ne $DefaultBranch))
     } catch {}
 
     if ($MergeBase) {
-        $diffOutput = git diff --name-only --diff-filter=ACMR "$MergeBase...HEAD" 2>$null
-        if ($diffOutput) {
-            $ChangedFiles = @($diffOutput | Where-Object { $_ -ne "" })
+        $diffRaw = git diff --name-only -z --diff-filter=ACMR "$MergeBase...HEAD" 2>$null
+        if ($diffRaw) {
+            $diffJoined = ($diffRaw -join "`n")
+            $ChangedFiles = @($diffJoined -split "`0" | Where-Object { $_ -ne "" })
         }
         $Mode = "Feature branch diff ($DefaultBranch...HEAD)"
     } else {
@@ -147,12 +148,18 @@ if ($CurrentBranch -and $DefaultBranch -and ($CurrentBranch -ne $DefaultBranch))
 
 if (-not $Mode) {
     # Mode B - Working Directory Changes
-    $staged = git diff --cached --name-only --diff-filter=ACMR 2>$null
-    $unstaged = git diff --name-only --diff-filter=ACMR 2>$null
+    $stagedRaw = git diff --cached --name-only -z --diff-filter=ACMR 2>$null
+    $unstagedRaw = git diff --name-only -z --diff-filter=ACMR 2>$null
 
     $allFiles = @()
-    if ($staged) { $allFiles += @($staged | Where-Object { $_ -ne "" }) }
-    if ($unstaged) { $allFiles += @($unstaged | Where-Object { $_ -ne "" }) }
+    if ($stagedRaw) {
+        $sJoined = ($stagedRaw -join "`n")
+        $allFiles += @($sJoined -split "`0" | Where-Object { $_ -ne "" })
+    }
+    if ($unstagedRaw) {
+        $uJoined = ($unstagedRaw -join "`n")
+        $allFiles += @($uJoined -split "`0" | Where-Object { $_ -ne "" })
+    }
 
     # Deduplicate
     $ChangedFiles = @($allFiles | Sort-Object -Unique)

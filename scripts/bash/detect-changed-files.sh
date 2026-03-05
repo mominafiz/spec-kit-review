@@ -142,9 +142,9 @@ if [[ -n "$CURRENT_BRANCH" && -n "$DEFAULT_BRANCH" && "$CURRENT_BRANCH" != "$DEF
 
     if [[ -n "$MERGE_BASE" ]]; then
         CHANGED_FILES=()
-        while IFS= read -r line; do
+        while IFS= read -r -d '' line; do
             [[ -n "$line" ]] && CHANGED_FILES+=("$line")
-        done < <(git diff --name-only --diff-filter=ACMR "${MERGE_BASE}...HEAD" 2>/dev/null)
+        done < <(git diff --name-only -z --diff-filter=ACMR "${MERGE_BASE}...HEAD" 2>/dev/null)
         MODE="Feature branch diff (${DEFAULT_BRANCH}...HEAD)"
     else
         # merge-base failed — fall through to Mode B
@@ -155,26 +155,30 @@ fi
 if [[ -z "$MODE" ]]; then
     # Mode B — Working Directory Changes
     STAGED=()
-    while IFS= read -r line; do
+    while IFS= read -r -d '' line; do
         [[ -n "$line" ]] && STAGED+=("$line")
-    done < <(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)
+    done < <(git diff --cached --name-only -z --diff-filter=ACMR 2>/dev/null)
 
     UNSTAGED=()
-    while IFS= read -r line; do
+    while IFS= read -r -d '' line; do
         [[ -n "$line" ]] && UNSTAGED+=("$line")
-    done < <(git diff --name-only --diff-filter=ACMR 2>/dev/null)
+    done < <(git diff --name-only -z --diff-filter=ACMR 2>/dev/null)
 
-    # Combine and deduplicate
+    # Combine and deduplicate (bash 3 compatible — no associative arrays)
     CHANGED_FILES=()
-    declare -A _seen_files
     for f in "${STAGED[@]}" "${UNSTAGED[@]}"; do
         [[ -z "$f" ]] && continue
-        if [[ -z "${_seen_files[$f]+x}" ]]; then
-            _seen_files["$f"]=1
+        _dup=false
+        for existing in "${CHANGED_FILES[@]}"; do
+            if [[ "$existing" == "$f" ]]; then
+                _dup=true
+                break
+            fi
+        done
+        if ! $_dup; then
             CHANGED_FILES+=("$f")
         fi
     done
-    unset _seen_files
 
     MODE="Working directory changes (staged + unstaged)"
     [[ -z "$DEFAULT_BRANCH" ]] && DEFAULT_BRANCH="(unknown)"

@@ -1,45 +1,46 @@
 BeforeAll {
     $ScriptsDir = Join-Path $PSScriptRoot "..\..\scripts\powershell"
     $Script = Join-Path $ScriptsDir "detect-changed-files.ps1"
-}
 
-function New-TempDir {
-    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
-    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
-    return $tmp
-}
+    function New-TempDir {
+        $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+        New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+        return $tmp
+    }
 
-function Initialize-GitRepo {
-    param([string]$Dir)
-    Push-Location $Dir
-    git init --quiet
-    git config user.email "test@example.com"
-    git config user.name "Test"
-    New-Item -ItemType File -Path ".gitkeep" -Force | Out-Null
-    git add .
-    git commit --quiet -m "Initial commit"
-    Pop-Location
-}
+    function Initialize-GitRepo {
+        param([string]$Dir)
+        Push-Location $Dir
+        git init --quiet -b main
+        git config user.email "test@example.com"
+        git config user.name "Test"
+        New-Item -ItemType File -Path ".gitkeep" -Force | Out-Null
+        git add .
+        git commit --quiet -m "Initial commit"
+        Pop-Location
+    }
 
-function Initialize-GitRepoWithRemote {
-    param([string]$Dir)
-    $bareDir = Join-Path $Dir "_bare_remote"
-    New-Item -ItemType Directory -Path $bareDir -Force | Out-Null
-    Push-Location $bareDir
-    git init --bare --quiet
-    Pop-Location
+    function Initialize-GitRepoWithRemote {
+        param([string]$Dir)
+        $bareDir = Join-Path $Dir "_bare_remote"
+        New-Item -ItemType Directory -Path $bareDir -Force | Out-Null
+        Push-Location $bareDir
+        git init --bare --quiet
+        git symbolic-ref HEAD refs/heads/main
+        Pop-Location
 
-    Push-Location $Dir
-    git init --quiet
-    git config user.email "test@example.com"
-    git config user.name "Test"
-    git remote add origin $bareDir
-    New-Item -ItemType File -Path ".gitkeep" -Force | Out-Null
-    git add .
-    git commit --quiet -m "Initial commit"
-    git push --quiet origin main 2>$null
-    git remote set-head origin --auto 2>$null
-    Pop-Location
+        Push-Location $Dir
+        git init --quiet -b main
+        git config user.email "test@example.com"
+        git config user.name "Test"
+        git remote add origin $bareDir
+        New-Item -ItemType File -Path ".gitkeep" -Force | Out-Null
+        git add .
+        git commit --quiet -m "Initial commit"
+        git push --quiet origin main
+        git remote set-head origin --auto 2>$null
+        Pop-Location
+    }
 }
 
 Describe "detect-changed-files.ps1" {
