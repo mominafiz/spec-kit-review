@@ -31,7 +31,7 @@ Verify installation:
 specify extension list
 # Should show:
 #  ✓ Review Extension (v1.0.0)
-#     Comprehensive PR review with specialized agents
+#     Post-implementation comprehensive code review with specialized agents for code quality, comments, tests, error handling, type design, and simplification.
 #     Commands: 7 | Hooks: 1 | Status: Enabled
 ```
 
