@@ -68,17 +68,21 @@ Check `$ARGUMENTS` for user-specified review aspects:
 
 ## Step 4: Agent Orchestration
 
-For each applicable agent execute the agent's command as a focused sub-task. Provide it with:
+Execute all applicable agents, providing each with:
 - The **CHANGED_FILES** list
 - The **GUIDELINES_PATH** (if present)
 - The **CONFIDENCE_THRESHOLD** value
 
+All agents are independent, read-only, and marked **[P]** — they can run together in parallel. Agents do not depend on each other's output.
+
 ### Collect Results
 
-After each agent completes, extract from its output:
+Wait for all dispatched agents to complete. For each agent, extract from its output:
 - All findings (severity, file, line, description, recommendation)
 - Files analyzed count
 - Agent status (success, error, skipped)
+
+For parallel agents [P], continue with successful agents and report failed ones. Do not re-run failed agents.
 
 ### De-Duplicate Findings
 

@@ -98,6 +98,10 @@ If project-specific guidelines exist (`.specify/memory/constitution.md`, `CLAUDE
 - **git**: Required for change detection
 - **spec-kit**: >= 0.1.0
 
+## Token Usage
+
+> **Heads up:** A full coordinated review (`/speckit.review`) dispatches 6 specialized agents, each of which reads the changed files independently. This can be token-intensive on larger PRs. To reduce costs, run targeted reviews (`/speckit.review code errors`) instead of the full suite, or disable agents you don't need in `.specify/extensions/review/review-config.yml`.
+
 ## Recommended Workflow
 
 ```

@@ -37,13 +37,13 @@ You evaluate type designs with a critical eye toward invariant strength, encapsu
 
 If **CHANGED_FILES** was provided by the `/speckit.review.run` orchestrator, use that list directly.
 
+The user may specify different files or scope to review — in that case, use the user-specified files instead.
+
 Otherwise:
 
 > **MANDATORY**: You **MUST** execute the `detect-changed-files` script with `--json` to identify changed files.
 > **DO NOT** manually run `git diff`, `git status`, `git log`, or any other git commands to detect changes yourself.
 > The script handles branch detection, merge-base resolution, and edge cases that manual commands will miss or get wrong.
-
-The user may specify different files or scope to review — in that case, use the user-specified files instead.
 
 ## Step 1b: Applicability Check
 
