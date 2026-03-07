@@ -61,6 +61,17 @@ Run only specific agents by passing aspect names:
 
 Valid aspects: `code`, `comments`, `tests`, `errors`, `types`, `simplify`, `all`
 
+### Parallel Review
+
+By default agents run sequentially so you can act on each report as it arrives. Add `parallel` to launch all agents simultaneously for faster results:
+
+```
+/speckit.review all parallel      # Full review, all agents in parallel
+/speckit.review tests errors parallel  # Parallel targeted review
+```
+
+Parallel mode is useful for comprehensive reviews where you want all findings at once rather than incremental feedback.
+
 ### Direct Agent Invocation
 
 Run any agent directly for focused, deep analysis:
@@ -80,12 +91,11 @@ Each agent auto-detects changed files independently when invoked directly.
 
 The consolidated report includes:
 
-- **Files Analyzed / Review Scope**: Count and how changed files were determined
-- **Agent Summary**: Status (success/error/skipped) and finding count per agent
-- **Critical Findings**: Severity 90-100 — file, line, description, recommendation
-- **Important Findings**: Severity 80-89 — file, line, description, recommendation
-- **Suggestions**: All simplification findings — file, line, description, recommendation
-- **Next Actions**: Prioritized remediation steps
+- **Critical Issues**: Must-fix issues identified by agents — file, line, description
+- **Important Issues**: Should-fix issues — file, line, description
+- **Suggestions**: Nice-to-have improvements — file, line, description
+- **Strengths**: What's well-done in the PR
+- **Recommended Action**: Prioritized remediation steps
 
 ## Configuration
 
@@ -100,7 +110,7 @@ If project-specific guidelines exist (`.specify/memory/constitution.md`, `CLAUDE
 
 ## Token Usage
 
-> **Heads up:** A full coordinated review (`/speckit.review`) dispatches 6 specialized agents, each of which reads the changed files independently. This can be token-intensive on larger PRs. To reduce costs, run targeted reviews (`/speckit.review code errors`) instead of the full suite, or disable agents you don't need in `.specify/extensions/review/review-config.yml`.
+> **Heads up:** A full coordinated review (`/speckit.review`) dispatches 6 specialized agents, each of which reads the changed files independently. This can be token-intensive on larger PRs. To reduce costs, run targeted reviews (`/speckit.review code errors`) instead of the full suite.
 
 ## Recommended Workflow
 

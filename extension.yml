@@ -71,7 +71,6 @@ tags:
   - "error-handling"
 
 defaults:
-  confidence_threshold: 80
   agents:
     code: true
     comments: true

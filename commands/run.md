@@ -5,155 +5,167 @@ scripts:
   ps: scripts/powershell/detect-changed-files.ps1
 ---
 
-## User Input
+# Comprehensive PR Review
 
-```text
-$ARGUMENTS
-```
+Run a comprehensive pull request review using multiple specialized agents, each focusing on a different aspect of code quality.
 
-You **MUST** consider the user input before proceeding (if not empty).
+**Review Aspects (optional):** "$ARGUMENTS"
 
-## Goal
+## Review Workflow:
 
-Orchestrate a comprehensive PR review by running specialized review agents against the changed files. Collect all findings, de-duplicate, group by severity, and produce a single consolidated report with actionable next steps.
+1. **Load Configuration**
+   - Read the project config file at `.specify/extensions/review/review-config.yml` (if it exists).
+   - If the file does not exist, fall back to the `defaults.agents` section in the extension's `extension.yml`.
+   - Extract the `agents` map — each key (`code`, `comments`, `tests`, `errors`, `types`, `simplify`) is a boolean toggle.
+   - Agents set to `false` **MUST** be excluded from this run. Do not launch them.
 
-## Operating Constraints
+2. **Determine Review Scope**
+   - Parse arguments to see if user requested specific review aspects.
+   - If specific aspects were requested, run exactly those — config toggles do **not** apply (explicit user request overrides config).
+   - Default (no arguments): Run all applicable reviews that are enabled in config.
 
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+3. **Available Review Aspects:**
 
----
-
-## Step 1: Git Diff Auto-Detection
-
-> **MANDATORY**: You **MUST** execute the `{SCRIPT}` to identify changed files.
-> **DO NOT** manually run `git diff`, `git status`, `git log`, or any other git commands to detect changes yourself.
-> **Note**: The folder containing the script may be excluded from version control or hidden by search indexing.
-
-Run the ``{SCRIPT}` with `--json` and parse the JSON output to populate **CHANGED_FILES**. Also capture **MODE** (e.g., branch diff, working tree) for the Review Scope field in the final report.
----
-
-## Step 2: Load Context
-
-### Extension Configuration
-
-Load the review extension config from `.specify/extensions/review/review-config.yml` (if it exists). If not found, fall back to the `defaults` section declared in the extension manifest (`extension.yml`).
-
-Store the loaded values as **CONFIDENCE_THRESHOLD** and **AGENT_TOGGLES** for use in subsequent steps.
-
-### Project Guidelines
-
-Check if project-specific guidelines (typically in `.specify/memory/constitution.md`, `CLAUDE.md`, `.github/copilot-instructions.md` or equivalent) exist:
-- If present, record its path as **GUIDELINES_PATH** for passing to agents
-- If not present, set GUIDELINES_PATH to empty (agents will skip guideline checks)
-
----
-
-## Step 3: Determine Applicable Agents
-
-Check `$ARGUMENTS` for user-specified review aspects:
-- Parse arguments to see if user requested specific review aspects
-- Default: Run all applicable reviews
-- **Config filtering**: If the user did not specify agents, exclude any agent where `AGENT_TOGGLES.{agent}` is `false`
-
-### **Available Review Aspects:**
-   - **code** - General code quality review — project guideline compliance, bug detection, code quality analysis (`/speckit.review.code`)
-   - **comments** - Code comment accuracy verification, documentation completeness assessment, comment rot detection (`/speckit.review.comments`)
-   - **tests** - Test coverage quality analysis — behavioral coverage, critical gap identification, test resilience evaluation (`/speckit.review.tests`)
-   - **errors** - Error handling review — silent failure detection, catch block analysis, error logging (`/speckit.review.errors`)
-   - **types** - Type design analysis — encapsulation, invariant expression, usefulness, and enforcement. Auto-skips for dynamically-typed languages (`/speckit.review.types`)
-   - **simplify** - Code simplification suggestions — clarity, unnecessary complexity, redundant abstractions. Advisory only (`/speckit.review.simplify`)
+   - **comments** - Analyze code comment accuracy and maintainability
+   - **tests** - Review test coverage quality and completeness
+   - **errors** - Check error handling for silent failures
+   - **types** - Analyze type design and invariants (if new types added)
+   - **code** - General code review for project guidelines
+   - **simplify** - Simplify code for clarity and maintainability
    - **all** - Run all applicable reviews (default)
 
----
+4. **Identify Changed Files**
 
-## Step 4: Agent Orchestration
+   - If a file list was provided, use it directly.
+   - Otherwise **MANDATORY**: You **MUST** execute the `{SCRIPT}` with `--json` to identify changed files.
+   - **DO NOT** manually run `git diff`, `git status`, `git log`, or any other git commands to detect changes yourself.
+   - **Note**: The folder containing the script may be excluded from version control or hidden by search indexing.
 
-Execute all applicable agents, providing each with:
-- The **CHANGED_FILES** list
-- The **GUIDELINES_PATH** (if present)
-- The **CONFIDENCE_THRESHOLD** value
+5. **Determine Applicable Reviews**
 
-All agents are independent, read-only, and marked **[P]** — they can run together in parallel. Agents do not depend on each other's output.
+   Based on changes **and** config toggles (skip any agent where `agents.<name>` is `false`):
+   - **Always applicable** (if enabled): `/speckit.review.code` (general quality)
+   - **If test files changed** (if enabled): `/speckit.review.tests`
+   - **If comments/docs added** (if enabled): `/speckit.review.comments`
+   - **If error handling changed** (if enabled): `/speckit.review.errors`
+   - **If types added/modified** (if enabled): `/speckit.review.types`
+   - **After passing review** (if enabled): `/speckit.review.simplify` (polish and refine)
+   - If an agent is disabled by config, note it in the final summary (e.g., "simplify: skipped (disabled in config)").
 
-### Collect Results
+6. **Launch Review Agents**
 
-Wait for all dispatched agents to complete. For each agent, extract from its output:
-- All findings (severity, file, line, description, recommendation)
-- Files analyzed count
-- Agent status (success, error, skipped)
+   **Sequential approach** (one at a time):
+   - Easier to understand and act on
+   - Each report is complete before next
+   - Good for interactive review
 
-For parallel agents [P], continue with successful agents and report failed ones. Do not re-run failed agents.
+   **Parallel approach** (user can request):
+   - Launch all agents simultaneously
+   - Faster for comprehensive review
+   - Results come back together
 
-### De-Duplicate Findings
+7. **Aggregate Results**
 
-Before generating the consolidated report, de-duplicate findings across agents using these rules:
+   After agents complete, summarize:
+   - **Critical Issues** (must fix before merge)
+   - **Important Issues** (should fix)
+   - **Suggestions** (nice to have)
+   - **Positive Observations** (what's good)
 
-1. **Match criteria**: Two findings are duplicates when they target the **same file** AND the **same line range** (within ±3 lines) AND describe the **same underlying issue** (semantically equivalent, even if worded differently).
-2. **Resolution — keep the specialist**: When a duplicate is found, keep the finding from the **more specialized agent** (e.g., prefer `errors` over `code` for error-handling issues, prefer `tests` over `code` for test-coverage issues).
-3. **Severity conflict**: If the duplicate findings have different severities, keep the **higher** severity.
-4. **Genuine disagreement**: If two agents flag the same location but for **genuinely different concerns** (e.g., `code` flags a naming issue on a line where `errors` flags a missing catch), these are **not** duplicates — include both.
-5. **Cross-agent note**: When a finding is de-duplicated, append "(also flagged by `<other-agent>`)" to the kept finding's description for traceability.
+8. **Provide Action Plan**
 
----
+   Organize findings:
+   ```markdown
+   # PR Review Summary
 
-## Step 5: Generate Consolidated Report
+   ## Critical Issues (X found)
+   - [agent-name]: Issue description [file:line]
 
-Output the final report in the following Markdown format:
+   ## Important Issues (X found)
+   - [agent-name]: Issue description [file:line]
 
-### Report Template
+   ## Suggestions (X found)
+   - [agent-name]: Suggestion [file:line]
 
-```markdown
-# PR Review Report
+   ## Strengths
+   - What's well-done in this PR
 
-**Files Analyzed**: <count>
-**Review Scope**: <describe how changed files were determined using MODE — e.g., feature branch diff, working directory changes, user-specified files>
-
-## Agent Summary
-
-| Agent | Status | Findings |
-|-------|--------|----------|
-<one row per agent: name, success/error/skipped, finding count>
-
-## Critical Findings
-
-| # | Agent | File | Line | Finding | Recommendation |
-|---|-------|------|------|---------|----------------|
-<critical findings rows>
-
-## Important Findings
-
-| # | Agent | File | Line | Finding | Recommendation |
-|---|-------|------|------|---------|----------------|
-<important findings rows>
-
-## Suggestions
-
-| # | Agent | File | Line | Finding | Recommendation |
-|---|-------|------|------|---------|----------------|
-<suggestion findings rows>
-
-## Next Actions
-
+   ## Recommended Action
    1. Fix critical issues first
    2. Address important issues
    3. Consider suggestions
    4. Re-run review after fixes
+   ```
+
+## Usage Examples:
+
+**Full review (default):**
+```
+/speckit.review
 ```
 
-## Operating Principles
+**Specific aspects:**
+```
+/speckit.review tests errors
+# Reviews only test coverage and error handling
 
-### Context Efficiency
+/speckit.review comments
+# Reviews only code comments
 
-- **Minimal high-signal tokens**: Focus on actionable findings, not exhaustive documentation
-- **Deterministic results**: Rerunning without changes should produce consistent IDs and counts
+/speckit.review simplify
+# Simplifies code after passing review
+```
 
-### Analysis Guidelines
+**Parallel review:**
+```
+/speckit.review all parallel
+# Launches all agents in parallel
+```
 
-- **NEVER modify files** (this is read-only analysis)
-- **NEVER hallucinate missing sections** (if absent, report them accurately)
-- **Use examples over exhaustive rules** (cite specific instances, not generic patterns)
-- **Report zero issues gracefully** (emit success report with coverage statistics)
+## Agent Descriptions:
 
-### Idempotency by Design
+**comment-analyzer**:
+- Verifies comment accuracy vs code
+- Identifies comment rot
+- Checks documentation completeness
 
-The command produces deterministic output — running verification twice on the same state yields the same report. No counters, timestamp-dependent logic, or accumulated state affects findings. The report is fully regenerated on each run.
+**pr-test-analyzer**:
+- Reviews behavioral test coverage
+- Identifies critical gaps
+- Evaluates test quality
+
+**silent-failure-hunter**:
+- Finds silent failures
+- Reviews catch blocks
+- Checks error logging
+
+**type-design-analyzer**:
+- Analyzes type encapsulation
+- Reviews invariant expression
+- Rates type design quality
+
+**code-reviewer**:
+- Checks CLAUDE.md compliance
+- Detects bugs and issues
+- Reviews general code quality
+
+**code-simplifier**:
+- Simplifies complex code
+- Improves clarity and readability
+- Applies project standards
+- Preserves functionality
+
+## Tips:
+
+- **Run early**: Before creating PR, not after
+- **Focus on changes**: Agents analyze diff by default
+- **Address critical first**: Fix high-priority issues before lower priority
+- **Re-run after fixes**: Verify issues are resolved
+- **Use specific reviews**: Target specific aspects when you know the concern
+
+## Notes:
+
+- Agents run autonomously and return detailed reports
+- Each agent focuses on its specialty for deep analysis
+- Results are actionable with specific file:line references
+- Agents use appropriate models for their complexity
