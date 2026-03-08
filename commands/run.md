@@ -127,32 +127,32 @@ Run a comprehensive pull request review using multiple specialized agents, each 
 
 ## Agent Descriptions:
 
-**comment-analyzer**:
+**comment**:
 - Verifies comment accuracy vs code
 - Identifies comment rot
 - Checks documentation completeness
 
-**pr-test-analyzer**:
+**tests**:
 - Reviews behavioral test coverage
 - Identifies critical gaps
 - Evaluates test quality
 
-**silent-failure-hunter**:
+**errors**:
 - Finds silent failures
 - Reviews catch blocks
 - Checks error logging
 
-**type-design-analyzer**:
+**types**:
 - Analyzes type encapsulation
 - Reviews invariant expression
 - Rates type design quality
 
-**code-reviewer**:
+**code**:
 - Checks project-specific guidelines (`.specify/memory/constitution.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, or equivalent) compliance
 - Detects bugs and issues
 - Reviews general code quality
 
-**code-simplifier**:
+**simplify**:
 - Simplifies complex code
 - Improves clarity and readability
 - Applies project standards
