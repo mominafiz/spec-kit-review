@@ -45,9 +45,16 @@ Run all specialized agents against your changes and get a consolidated report:
 /speckit.review
 ```
 
-The coordinator automatically detects changed files via git diff:
-- **Feature branch**: Diffs against the default branch (main/master) using the merge base
-- **Default branch**: Reviews staged and unstaged changes
+All commands (coordinator and individual agents) use the built-in `detect-changed-files` script to automatically identify what to review when no files are specified:
+- **Feature branch**: Committed changes since the merge base with the default branch (main/master), plus any uncommitted work
+- **Default branch**: Only uncommitted work (staged and unstaged changes)
+
+You can skip the script entirely by telling the agent what to review:
+
+```
+/speckit.review only staged changes
+/speckit.review only files in src/utils/
+```
 
 ### Targeted Review
 
