@@ -35,7 +35,6 @@ provides:
     - name: "speckit.review.run"
       file: "commands/run.md"
       description: "Comprehensive code review using specialized agents"
-      aliases: ["speckit.review"]
     - name: "speckit.review.code"
       file: "commands/code.md"
       description: "General code quality review — project guideline compliance, bug detection, code quality"
